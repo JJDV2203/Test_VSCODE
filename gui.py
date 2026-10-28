@@ -36,6 +36,7 @@ class spectometerGui(QMainWindow):
         label = QLabel("Test Name:")  
         font = QFont("Cambria", 20)    
         label.setFont(font)
+        label.setStyleSheet("color: white")
         self.testName = QLineEdit()
         self.testName.setStyleSheet("background-color: white")
         self.testName.setMinimumWidth(300)
@@ -69,32 +70,35 @@ class spectometerGui(QMainWindow):
         #Start button
         self.startButton = QPushButton("Start")
         self.startButton.setStyleSheet("background-color: white")
-        buttonFont = QFont("Cambria", 20)
+        buttonFont = QFont("Arial Black", 20)
         self.startButton.setFont(buttonFont)
         self.startButton.setMinimumSize(200,50)
-        rightLayout.addSpacing(50)
+        rightLayout.addSpacing(25)
         rightLayout.addWidget(self.startButton)
         rightLayout.addStretch()
         
 
         #Target - wavelength
         waveLayout = QVBoxLayout()  
-        wavelengthLabel = QLabel("Wavelength")
+        wavelengthLabel = QLabel("Target wavelength")
+        wavelengthLabel.setStyleSheet("color: white")
         font = QFont("Cambria", 20) 
         wavelengthLabel.setFont(font)
         self.target = QLineEdit()
         self.target.setStyleSheet("background-color: white")
-        self.target.setFixedWidth(200)
+        self.target.setFixedSize(200,50)
         waveLayout.addWidget(wavelengthLabel)
         waveLayout.addWidget(self.target)
         rightLayout.addSpacing(200)
         rightLayout.addLayout(waveLayout)
         rightLayout.addStretch()
-        
+       
 
         #File dialog
         self.saveButton = QPushButton("Save")
         self.saveButton.setStyleSheet("background-color: white")
+        self.saveButton.setFont(buttonFont)
+        self.saveButton.setMinimumSize(200,50)
         self.saveButton.clicked.connect(self.saveFile)
         rightLayout.addWidget(self.saveButton)
 

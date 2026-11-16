@@ -6,8 +6,9 @@ from PyQt6.QtGui import QFont
 import pyqtgraph as pg
 import csv
 from datetime import datetime
+import spectrometer
 
-class spectometerGui(QMainWindow):
+class spectrometerGui(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Spectrometer Testing")
@@ -26,7 +27,7 @@ class spectometerGui(QMainWindow):
         mainLayout.addSpacing(30)
     
 
-        #Right hand vertical layout
+        #Right vertical layout
         rightLayout = QVBoxLayout()
         rightLayout.setContentsMargins(0,0,50,0)
         mainLayout.addLayout(rightLayout,1)
@@ -49,22 +50,26 @@ class spectometerGui(QMainWindow):
 
         #Graph 1
         self.plotGraph1 = pg.PlotWidget()
-        self.wavelength = [0,10,20,30]
-        self.absorption = [0,10,5,30]
-        self.targetAbsoprtion = [0,20,40,60]
+        self.wavelength = []
+        self.brightness = []
         pen1 = pg.mkPen(color=(255, 0, 0), width=2) 
         pen2 = pg.mkPen(color=(0, 0, 255), width=2) 
         self.plotGraph1.addLegend()
-        self.plotGraph1.plot(self.wavelength, self.absorption,pen=pen1, symbol ="o", symbolSize=7, symbolBrush ="w", name="wavelength")
-        self.plotGraph1.plot(self.wavelength, self.targetAbsoprtion,pen=pen2, symbol ="o", symbolSize=7, symbolBrush ="w", name="Target wavelength")
         self.plotGraph1.setTitle("Spectral Profile", color ="w", size="20pt")
         styles = {"color": "white", "font-size": "18px"}
-        self.plotGraph1.setLabel("left", "Absorbance",**styles)
+        self.plotGraph1.setLabel("left", "Brightness",**styles)
         self.plotGraph1.setLabel("bottom", "Wavelength (nm)",**styles)
         self.plotGraph1.showGrid(x=True,y=True)
-    
-
         leftLayout.addWidget(self.plotGraph1)       
+
+        #Plotting live graph
+        self.line = self.plotGraph1.plot(
+            self.wavelength,
+            self.brightness,
+            name = "Spectrometer data",
+            pen = pen1,
+            )
+
 
 
         #Start button
@@ -73,6 +78,7 @@ class spectometerGui(QMainWindow):
         buttonFont = QFont("Arial Black", 20)
         self.startButton.setFont(buttonFont)
         self.startButton.setMinimumSize(200,50)
+        self.startButton.clicked.connect(self.startData)
         rightLayout.addSpacing(25)
         rightLayout.addWidget(self.startButton)
         rightLayout.addStretch()
@@ -94,14 +100,13 @@ class spectometerGui(QMainWindow):
         rightLayout.addStretch()
        
 
-        #File dialog
+        #File dialog - save button
         self.saveButton = QPushButton("Save")
         self.saveButton.setStyleSheet("background-color: white")
         self.saveButton.setFont(buttonFont)
         self.saveButton.setMinimumSize(200,50)
         self.saveButton.clicked.connect(self.saveFile)
         rightLayout.addWidget(self.saveButton)
-
         rightLayout.addStretch()
 
     
@@ -117,16 +122,38 @@ class spectometerGui(QMainWindow):
         with open(filePath, "w", newline="") as file:
             writer = csv.writer(file)
             writer.writerow(["Frequency", "Absorbance"])
-            for x, y in zip(self.wavelength, self.absorption):
+            for x, y in zip(self.wavelength, self.brightness):
                 writer.writerow([x, y])
-       
+    
+    def startData(self):
+        print("Clicked!")
+        try:
+            spectrometer.start()
+            spectrum = spectrometer.read_spectrum()
+        
+            print(spectrum.shape)                 # should be 1440
+            peak = np.argmax(spectrum)            # brightest column 
+            peak_nm = 0.234 * peak + 400.0        # column to wavelength in nm 
 
+            #Save the data so other methods (likesaveFile) can use it
+            self.brightness = spectrometer.read_spectrum()  #y-axis
+            self.wavelength = 0.234 * np.arange(1440) + 400.0 #creates range up to 1440  #x-axis
+            print(f"peak: {peak_nm:.1f} nm (column {peak})")
 
+            self.line.setData(self.wavelength,self.brightness) #Plots data to the graph
 
+        except Exception as e: #The app keep running even after the error
+            print("Spectrometer error:", e)
+        finally:
+            spectrometer.stop()   # always runs even after an error
 
+    
+    
+        
+#graph brightness and wavelength.
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = spectometerGui()
+    window = spectrometerGui()
     window.show()
     app.exec()

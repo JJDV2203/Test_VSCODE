@@ -1,19 +1,24 @@
 import numpy as np
 import sys
 from PyQt6.QtWidgets import QApplication,QWidget,QLabel,QLineEdit,QVBoxLayout,QHBoxLayout,QMainWindow,QPushButton,QFileDialog
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtGui import QFont
 import pyqtgraph as pg
 import csv
 from datetime import datetime
 import spectrometer
+import threading
 
 class spectrometerGui(QMainWindow):
+    newData = pyqtSignal(object) #Creates newData as a signal
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Spectrometer Testing")
         self.resize (1000,700)
         self.setStyleSheet("background-color: #2b2b2b;")
+        self.newData.connect(self.updatePlot)
+        self.running = False
 
         #Create the initial layout
         central_widget = QWidget()
@@ -69,8 +74,7 @@ class spectrometerGui(QMainWindow):
             name = "Spectrometer data",
             pen = pen1,
             )
-
-
+        
 
         #Start button
         self.startButton = QPushButton("Start")
@@ -83,7 +87,17 @@ class spectrometerGui(QMainWindow):
         rightLayout.addWidget(self.startButton)
         rightLayout.addStretch()
         
-
+        #Stop Button
+        self.startButton = QPushButton("Stop")
+        self.startButton.setStyleSheet("background-color: white")
+        buttonFont = QFont("Arial Black", 20)
+        self.startButton.setFont(buttonFont)
+        self.startButton.setMinimumSize(200,50)
+        self.startButton.clicked.connect(self.stopData)
+        rightLayout.addSpacing(25)
+        rightLayout.addWidget(self.startButton)
+        rightLayout.addStretch()
+        
         #Target - wavelength
         waveLayout = QVBoxLayout()  
         wavelengthLabel = QLabel("Target wavelength")
@@ -127,30 +141,43 @@ class spectrometerGui(QMainWindow):
     
     def startData(self):
         print("Clicked!")
+        if (self.running):
+            return
         try:
             spectrometer.start()
-            spectrum = spectrometer.read_spectrum()
-        
-            print(spectrum.shape)                 # should be 1440
-            peak = np.argmax(spectrum)            # brightest column 
-            peak_nm = 0.234 * peak + 400.0        # column to wavelength in nm 
-
-            #Save the data so other methods (likesaveFile) can use it
-            self.brightness = spectrum  #y-axis
-            self.wavelength = 0.234 * np.arange(1440) + 400.0 #creates range up to 1440  #x-axis
-            print(f"peak: {peak_nm:.1f} nm (column {peak})")
-
-            self.line.setData(self.wavelength,self.brightness) #Plots data to the graph
-
         except Exception as e: #The app keep running even after the error
             print("Spectrometer error:", e)
+            return
         finally:
             spectrometer.stop()   # always runs even after an error
 
+        self.running = True
+        self.t = threading.Thread(target = self.getData, daemon=True) #Creates a threat in the background that stop once the main function it's stopped
+        self.t.start()
+
+    def stopData(self):
+        self.running = False
+
+    def getData(self):
+        while self.running:
+            try:
+                spectrum = spectrometer.read_spectrum()
+                self.newData.emit(spectrum) #newData basically becomes a signal that carries the information in spectrum
+                                            #All your readings esentially
+            except Exception as e: #The app keep running even after the error
+                print("Spectrometer error:", e)
+                return
+            finally:
+                spectrometer.stop()  
     
-    
-        
-#graph brightness and wavelength.
+    def updatePlot(self,spectrum):          
+        print(spectrum.shape)                 # should be 1440
+        peak = np.argmax(spectrum)            # brightest column 
+        peak_nm = 0.234 * peak + 400.0        # column to wavelength in nm 
+        self.brightness = spectrum  #y-axis
+        self.wavelength = 0.234 * np.arange(1440) + 400.0 #creates range up to 1440  #x-axis
+        print(f"peak: {peak_nm:.1f} nm (column {peak})")
+        self.line.setData(self.wavelength,self.brightness) #Plots data to the graph
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

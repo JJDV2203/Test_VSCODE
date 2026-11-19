@@ -136,7 +136,7 @@ class spectrometerGui(QMainWindow):
             peak_nm = 0.234 * peak + 400.0        # column to wavelength in nm 
 
             #Save the data so other methods (likesaveFile) can use it
-            self.brightness = spectrometer.read_spectrum()  #y-axis
+            self.brightness = spectrum  #y-axis
             self.wavelength = 0.234 * np.arange(1440) + 400.0 #creates range up to 1440  #x-axis
             print(f"peak: {peak_nm:.1f} nm (column {peak})")
 
